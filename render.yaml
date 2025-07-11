@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: kumulus-api
+    env: docker
+    repo: https://github.com/vrazlen/kafkaesque
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          type: "postgres"
+          name: "pg-aa5e946"
+          property: "connectionString"
+    healthCheckPath: /health
