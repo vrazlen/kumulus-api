@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-dotenv
+asyncpg
+requests
+geopandas
+pandas
+tqdm
+rasterio
+Pillow
+torch
+torchvision
+segmentation-models-pytorch
+torchmetrics
+scikit-learn

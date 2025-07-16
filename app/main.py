@@ -1,37 +1,47 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
-from fastapi import FastAPI
-from sqlalchemy import create_engine, text
+from fastapi import FastAPI, Depends
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, text
+from typing import List
+from .models import Settlement as SettlementModel
 
-# Initialize FastAPI app
-app = FastAPI()
-
-# Get the database URL from the environment variable
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-@app.on_event("startup")
-def startup_event():
-    """
-    On startup, check the database connection.
-    This confirms the environment variables are correctly set.
-    """
-    if DATABASE_URL is None:
-        print("!!! DATABASE_URL environment variable not set. !!!")
-        return
+engine = create_async_engine(DATABASE_URL)
+AsyncDBSession = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+Base = declarative_base()
 
-    try:
-        engine = create_engine(DATABASE_URL)
-        with engine.connect() as connection:
-            # Execute a simple query to test the connection
-            result = connection.execute(text("SELECT 1"))
-            for row in result:
-                print("--- Database connection successful. ---")
-    except Exception as e:
-        print(f"--- Database connection failed: {e} ---")
+# Define the SQLAlchemy model to match our database table
+class SettlementDB(Base):
+    __tablename__ = 'settlements'
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    kumuh_score = Column(Numeric)
+    # We can ignore the geometry and other fields for now
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
 
+
+app = FastAPI()
+
+# Dependency to get a DB session
+async def get_db() -> AsyncSession:
+    async with AsyncDBSession() as session:
+        yield session
 
 @app.get("/health")
-def read_root():
+async def health_check():
+    return {"status": "ok", "message": "API is running"}
+
+@app.get("/settlements/", response_model=List[SettlementModel])
+async def get_settlements(db: AsyncSession = Depends(get_db)):
     """
-    Health check endpoint. If this is reachable, the app is live.
+    Retrieves a list of all settlements from the database.
     """
-    return {"status": "ok"}
+    result = await db.execute(text("SELECT id, name, kumuh_score, created_at FROM settlements;"))
+    settlements = result.fetchall()
+    return settlements

@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgis/postgis
+    environment:
+      POSTGRES_USER: kumulus
+      POSTGRES_PASSWORD: kumuluspassword
+      POSTGRES_DB: kumulus_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    volumes:
+      - .:/code
+    depends_on:
+      - db
+    environment:
+      # --- ADD THIS BLOCK ---
+      - PYTHONPATH=/code
+      # This ensures our local .env file is used for the database URL
+      - DATABASE_URL=postgresql+asyncpg://kumulus:kumuluspassword@db:5432/kumulus_db
+
+volumes:
+  postgres_data:
