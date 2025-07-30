@@ -1,6 +1,32 @@
 # src/visualization.py
 import numpy as np
 from PIL import Image, ImageDraw
+# In src/visualization.py
+import torch
+from torchvision.transforms.functional import to_pil_image
+
+def save_tensor_as_image(tensor: torch.Tensor, file_path: str):
+    """
+    Saves a 3-channel PyTorch tensor as a standard image file (e.g., PNG).
+    Handles normalization and data type conversion. [cite: 55]
+
+    Args:
+        tensor (torch.Tensor): The input tensor, expected shape (C, H, W).
+        file_path (str): The path to save the output image.
+    """
+    # Ensure tensor is on the CPU for processing with PIL [cite: 56]
+    if tensor.is_cuda:
+        tensor = tensor.cpu()
+
+    # If the tensor is normalized, scale it to 0-255 and convert to byte type [cite: 57]
+    if tensor.dtype == torch.float32 or tensor.dtype == torch.float64:
+        tensor = torch.clamp(tensor, 0, 1)
+        tensor = tensor.mul(255).byte()
+
+    # Convert the tensor to a PIL Image and save in a lossless format [cite: 58, 59]
+    pil_image = to_pil_image(tensor)
+    pil_image.save(file_path, format='PNG')
+    print(f"Successfully saved high-fidelity image to {file_path}")
 
 def create_overlay(image, mask, color, alpha=0.5):
     """

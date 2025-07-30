@@ -1,15 +1,15 @@
-# Byte-compiled / optimized / DLL files
+# .gitignore
+
+# Ignore all data directories
+/data/
+
+# Ignore MLflow tracking artifacts
+/mlruns/
+
+# Ignore Python cache files
 __pycache__/
 *.pyc
 
-# Virtual environment
-.venv
-venv/
-ENV/
-
-# Environment variables
+# Ignore environment files
 .env
-
-# IDE
-.idea/
-.vscode/
+.wslconfig

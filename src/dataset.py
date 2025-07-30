@@ -1,5 +1,6 @@
 # src/dataset.py
 import os
+import glob
 from PIL import Image
 import numpy as np
 import torch
@@ -7,40 +8,36 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 
 class SegmentationDataset(Dataset):
-    """
-    Dataset for satellite image segmentation.
-    Reads images and their corresponding masks.
-    """
-    def __init__(self, transform=None):
-        # --- CORRECTED PATHS ---
-        self.image_dir = 'data/processed/patches'
-        self.mask_dir = 'data/processed/masks' # This should be the correct path for masks
-
-        self.image_ids = sorted([f for f in os.listdir(self.image_dir) if f.endswith('.tif')])
+    def __init__(self, data_dir='data/processed', transform=None):
+        self.image_dir = os.path.join(data_dir, 'patches')
+        self.mask_dir = os.path.join(data_dir, 'masks')
         self.transform = transform
 
+        if not os.path.isdir(self.image_dir):
+            raise FileNotFoundError(f"Image directory not found at {self.image_dir}")
+        
+        self.image_files = sorted(glob.glob(os.path.join(self.image_dir, '*.tif')))
+        
+        if not self.image_files:
+            raise ValueError(f"No images found in {self.image_dir}")
+
     def __len__(self):
-        return len(self.image_ids)
+        return len(self.image_files)
 
     def __getitem__(self, idx):
-        img_name = self.image_ids[idx]
-        img_path = os.path.join(self.image_dir, img_name)
-
-        # Construct mask path from image path
-        mask_name = img_name.replace('.tif', '_mask.tif') # Assuming this naming convention
-        mask_path = os.path.join(self.mask_dir, mask_name)
+        img_path = self.image_files[idx]
+        mask_path = os.path.join(self.mask_dir, os.path.basename(img_path))
 
         image = Image.open(img_path).convert("RGB")
-
-        # For this dataset, we assume masks are single-channel images
         mask = Image.open(mask_path).convert("L")
-        mask = np.array(mask) / 255.0 # Normalize mask to 0-1
-        mask = np.expand_dims(mask, axis=0) # Add channel dimension
+
+        mask_np = np.array(mask) / 255.0
+        mask_np = np.expand_dims(mask_np, axis=0) 
 
         if self.transform:
             image = self.transform(image)
 
-        return image, torch.from_numpy(mask).float()
+        return image, torch.from_numpy(mask_np).float()
 
 def get_train_transform():
     return T.Compose([

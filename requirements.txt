@@ -15,3 +15,5 @@ torchvision
 segmentation-models-pytorch
 torchmetrics
 scikit-learn
+mlflow
+boto3
