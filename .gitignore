@@ -1,15 +1,32 @@
 # .gitignore
 
-# Ignore all data directories
-/data/
-
-# Ignore MLflow tracking artifacts
-/mlruns/
-
-# Ignore Python cache files
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Ignore environment files
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Configuration and Secrets
+# IMPORTANT: Never commit your .env file
 .env
-.wslconfig
+
+# Data Files
+# As you correctly pointed out, we ignore all data files.
+data/
+
+# Log files
+logs/
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+
+# IDE / Editor folders
+.idea/
+.vscode/

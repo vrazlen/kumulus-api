@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: kumulus-api
-    env: docker
-    repo: https://github.com/vrazlen/kumulus-api # Corrected repo name for clarity
-    plan: free
-    healthCheckPath: /health

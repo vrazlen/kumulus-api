@@ -10,81 +10,18 @@ from shapely.geometry import box
 SENTINEL_DIR = 'data/raw/sentinel'
 AOI_FILE = 'data/raw/jakarta_aoi_correct.geojson'
 PROCESSED_DIR = 'data/processed'
-# This will be our primary 3-channel output
-CLIPPED_RGB_RASTER_OUTPUT_PATH = os.path.join(PROCESSED_DIR, 'jakarta_clipped_rgb.tif')
+# The output is now a 4-band B, G, R, NIR image
+CLIPPED_RASTER_OUTPUT_PATH = os.path.join(PROCESSED_DIR, 'jakarta_clipped_4band.tif')
 
-def stack_rgb_bands(product_path: str, output_path: str):
-    """
-    Finds Sentinel-2 B4, B3, B2 bands in a .SAFE product folder,
-    stacks them, and saves as a 3-channel GeoTIFF.
-    """
-    # This search pattern is robust to find the 10m resolution bands [cite: 34]
-    band_search_pattern = os.path.join(product_path, 'GRANULE', '*', 'IMG_DATA', 'R10m', '*_B0*_10m.jp2')
-    band_files = glob.glob(band_search_pattern)
-
-    # Find the specific bands for Red, Green, and Blue [cite: 20]
-    b4_path = next((f for f in band_files if '_B04_' in f), None) # Red
-    b3_path = next((f for f in band_files if '_B03_' in f), None) # Green
-    b2_path = next((f for f in band_files if '_B02_' in f), None) # Blue
-
-    if not all([b4_path, b3_path, b2_path]):
-        raise FileNotFoundError(f"Could not find all required RGB bands (B02, B03, B04) in {product_path}")
-    
-    print("Found band files:")
-    print(f" - Red (B04): {os.path.basename(b4_path)}")
-    print(f" - Green (B03): {os.path.basename(b3_path)}")
-    print(f" - Blue (B02): {os.path.basename(b2_path)}")
-
-    # Use metadata from one band as a template for the output GeoTIFF [cite: 35]
-    with rasterio.open(b4_path) as src:
-        meta = src.meta.copy()
-
-    # Update metadata for a 3-channel RGB output [cite: 35]
-    meta.update({
-        'driver': 'GTiff',
-        'count': 3,
-        'dtype': 'uint16' # Sentinel-2 L2A data is typically 16-bit
-    })
-
-    print(f"Stacking bands into new GeoTIFF: {output_path}")
-    with rasterio.open(output_path, 'w', **meta) as dst:
-        with rasterio.open(b4_path) as src_r, \
-             rasterio.open(b3_path) as src_g, \
-             rasterio.open(b2_path) as src_b:
-            dst.write(src_r.read(1), 1)  # Red to band 1
-            dst.write(src_g.read(1), 2)  # Green to band 2
-            dst.write(src_b.read(1), 3)  # Blue to band 3
-    print("Successfully created 3-channel RGB GeoTIFF.")
-
-
-def clip_raster_to_aoi(input_raster, output_raster, aoi_path):
-    """Clips a raster to the bounding box of a vector AOI."""
-    print(f"Clipping {os.path.basename(input_raster)} to AOI...")
-    vector_gdf = gpd.read_file(aoi_path)
-    
-    with rasterio.open(input_raster) as src:
-        if vector_gdf.crs != src.crs:
-            vector_gdf = vector_gdf.to_crs(src.crs)
-
-        # Get the bounding box of the AOI to use for clipping
-        bbox_poly = box(*vector_gdf.total_bounds)
-        
-        clipped_image, clipped_transform = mask(
-            dataset=src,
-            shapes=[bbox_poly],
-            crop=True
-        )
-        
-        clipped_meta = src.meta.copy()
-        clipped_meta.update({
-            "height": clipped_image.shape[1],
-            "width": clipped_image.shape[2],
-            "transform": clipped_transform,
-        })
-
-        print(f"Saving final clipped RGB raster to {output_raster}...")
-        with rasterio.open(output_raster, "w", **clipped_meta) as dest:
-            dest.write(clipped_image)
+def find_band_file(path: str, band_id: str) -> str:
+    """Robustly finds a specific band file within a Sentinel-2 product."""
+    # Search in the R10m directory for B2, B3, B4, B8
+    search_path = os.path.join(path, 'GRANULE', '*', 'IMG_DATA', 'R10m')
+    search_pattern = os.path.join(search_path, f'*_{band_id}_10m.jp2')
+    files = glob.glob(search_pattern, recursive=True)
+    if not files:
+        raise FileNotFoundError(f"No file found for band {band_id} in {path}")
+    return files[0]
 
 def main():
     """Main workflow for preparing geodata."""
@@ -95,22 +32,55 @@ def main():
     if not safe_folders:
         raise FileNotFoundError(f".SAFE folder not found in {SENTINEL_DIR}")
     
-    # Use the first .SAFE folder found
     product_path = safe_folders[0]
-    print(f"Processing product: {product_path}")
+    print(f"Processing product: {os.path.basename(product_path)}")
     
-    temp_stacked_rgb_path = os.path.join(PROCESSED_DIR, 'temp_stacked_rgb.tif')
-    
-    # 1. Stack bands into a full 3-channel image
-    stack_rgb_bands(product_path, temp_stacked_rgb_path)
-    
-    # 2. Clip the stacked image to our AOI
-    clip_raster_to_aoi(temp_stacked_rgb_path, CLIPPED_RGB_RASTER_OUTPUT_PATH, AOI_FILE)
+    # Find all required bands
+    print("Finding Blue (B02), Green (B03), Red (B04), and NIR (B08) bands...")
+    blue_file = find_band_file(product_path, 'B02')
+    green_file = find_band_file(product_path, 'B03')
+    red_file = find_band_file(product_path, 'B04')
+    nir_file = find_band_file(product_path, 'B08')
 
-    # 3. Clean up the temporary full-sized raster
-    os.remove(temp_stacked_rgb_path)
+    # Create a temporary stacked 4-band file
+    temp_4band_path = os.path.join(PROCESSED_DIR, 'temp_4band.tif')
+    print("Stacking B, G, R, NIR bands into a temporary file...")
+    with rasterio.open(red_file) as src:
+        meta = src.meta.copy()
     
-    print("\nData preparation complete. Clipped 3-channel RGB image is ready.")
+    meta.update(count=4, driver='GTiff')
+
+    with rasterio.open(temp_4band_path, 'w', **meta) as dst:
+        with rasterio.open(blue_file) as src_b: dst.write(src_b.read(1), 1)
+        with rasterio.open(green_file) as src_g: dst.write(src_g.read(1), 2)
+        with rasterio.open(red_file) as src_r: dst.write(src_r.read(1), 3)
+        with rasterio.open(nir_file) as src_n: dst.write(src_n.read(1), 4)
+
+    # Clip the stacked raster to the AOI
+    print(f"Clipping raster to AOI defined in {AOI_FILE}...")
+    vector_gdf = gpd.read_file(AOI_FILE)
+    
+    with rasterio.open(temp_4band_path) as src:
+        if vector_gdf.crs != src.crs:
+            vector_gdf = vector_gdf.to_crs(src.crs)
+
+        bbox_poly = box(*vector_gdf.total_bounds)
+        
+        clipped_image, clipped_transform = mask(dataset=src, shapes=[bbox_poly], crop=True)
+        
+        clipped_meta = src.meta.copy()
+        clipped_meta.update({
+            "height": clipped_image.shape[1],
+            "width": clipped_image.shape[2],
+            "transform": clipped_transform,
+        })
+
+        print(f"Saving final clipped 4-band raster to {CLIPPED_RASTER_OUTPUT_PATH}...")
+        with rasterio.open(CLIPPED_RASTER_OUTPUT_PATH, "w", **clipped_meta) as dest:
+            dest.write(clipped_image)
+    
+    os.remove(temp_4band_path)
+    print("\nData preparation complete. Clipped 4-band image is ready for analysis.")
 
 if __name__ == '__main__':
     main()
