@@ -16,11 +16,13 @@ ENV/
 .env
 
 # Data Files
-# As you correctly pointed out, we ignore all data files.
 data/
 
 # Log files
 logs/
+
+# MLflow runs
+mlruns/
 
 # Test artifacts
 .pytest_cache/
