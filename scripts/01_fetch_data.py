@@ -17,7 +17,7 @@ ODATA_SEARCH_URL = "https://catalogue.dataspace.copernicus.eu/odata/v1/Products"
 # DEFINITIVE CORRECTION: Use the 'zipper' service endpoint AND remove single quotes around the UUID
 ZIPPER_DOWNLOAD_URL_TEMPLATE = "https://zipper.dataspace.copernicus.eu/odata/v1/Products({uuid})/$value"
 
-AOI_FILE = 'data/raw/jakarta_aoi_correct.geojson'
+AOI_FILE = 'data/raw/jakarta_boundary.geojson'
 OUTPUT_DIR = 'data/raw/sentinel'
 
 # --- Main Logic ---

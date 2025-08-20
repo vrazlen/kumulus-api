@@ -1,34 +1,25 @@
 # .gitignore
 
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Virtual environment
+# Environment & Secrets
 .venv/
-venv/
-ENV/
-
-# Configuration and Secrets
-# IMPORTANT: Never commit your .env file
 .env
 
-# Data Files
+# Data, Models & Experiment Artifacts
 data/
-
-# Log files
-logs/
-
-# MLflow runs
+data.zip
+models/
 mlruns/
+mlartifacts/ # Added based on your status
+cache/       # Added based on your status
 
-# Test artifacts
-.pytest_cache/
-htmlcov/
-.coverage
+# Python Caches
+__pycache__/
+*.pyc
 
-# IDE / Editor folders
-.idea/
+# IDE & OS Specific
 .vscode/
+.idea/
+.DS_Store
+
+# Temporary Files
+directory_tree.txt
