@@ -9,8 +9,8 @@ data/
 data.zip
 models/
 mlruns/
-mlartifacts/ # Added based on your status
-cache/       # Added based on your status
+mlartifacts/
+cache/
 
 # Python Caches
 __pycache__/

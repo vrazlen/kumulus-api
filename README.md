@@ -1,144 +1,23 @@
-\# KUMULUS AI Consultant
+## Project Development Sprint Summary
 
+This section chronicles the complete technical evolution of the KUMULUS project, detailing the architectural decisions, challenges, and resolutions that transformed it from an initial concept into a production-grade MLOps pipeline.
 
+### Initial Setup & Debugging
 
-\*\*Version:\*\* 1.0.0
+The project's initiation phase focused on hardening the development environment and resolving a series of critical dependency conflicts. Key successes included rectifying a `Pydantic` version mismatch, resolving ML library import errors by enforcing compatible versions, and pivoting from a database-centric approach to a more flexible file-based output for local development, which bypassed complex Docker networking issues.
 
-\*\*Status:\*\* Production-Ready, Pending UAT
+### Data Pipeline Evolution
 
+The data pipeline underwent significant architectural evolution to ensure data quality and mitigate bias. The process began with foundational scripts for data acquisition and preparation. It progressed to a sophisticated data integrity workflow that included programmatic label refinement using `NDVI/NDWI` spectral indices to reduce noise (`06_refine_labels.py`). The most critical advancement was the re-architecture of the data splitting logic (`04_split_dataset.py`), moving from a simple grid-based split to a **randomized spatial split**. This successfully addressed a severe spatial bias discovered in the data, ensuring the training and validation sets are now geographically representative.
 
+### Architectural Bottlenecks & Resolutions
 
-\## 1. Introduction
+As the pipeline matured, two major performance bottlenecks were identified and resolved with advanced architectural patterns:
 
+1.  **I/O Bottleneck ("Chip-to-Disk"):** The initial strategy of saving pre-processed image "chips" to disk proved to be a brittle and slow I/O bottleneck, causing catastrophic failures when the data distribution changed. This was resolved by implementing a **unified, in-memory pipeline** on Kaggle. This "rasterize-first" approach processes the entire dataset in memory, from rasterization and on-the-fly normalization to dynamic chip generation, eliminating fragile file dependencies and dramatically improving performance.
 
+2.  **CUDA Memory Overflow:** The strategic upgrade to the powerful `EfficientNet-B7` encoder model exceeded the GPU's VRAM capacity. This was resolved by integrating two industry-standard techniques into the PyTorch training loop: **Automatic Mixed-Precision (AMP)**, which halves memory usage by leveraging FP16 precision, and **Gradient Accumulation**, which simulates large, stable batch sizes while maintaining a low memory footprint.
 
-The KUMULUS AI Consultant is a production-grade, enterprise-ready AI system designed for advanced urban geospatial analysis. It functions as an agentic consultant, leveraging a suite of specialized tools, a hybrid retrieval-augmented generation (RAG) system, and a core logic layer for explainability and ethical oversight.
+### Final State
 
-
-
-This system is built to be robust, scalable, and maintainable, transitioning from a conceptual prototype to a reliable application ready for real-world deployment. This repository contains the complete, production-ready codebase as defined by the \*\*KUMULUS AI Production Blueprint\*\*.
-
-
-
-\## 2. System Architecture
-
-
-
-The project follows a modern `src` layout to ensure testability and a clear separation of concerns.
-
-
-
-\-   \*\*`config/`\*\*: Manages all application configuration via a type-safe `pydantic-settings` model.
-
-\-   \*\*`data/`\*\*: Contains raw and processed data used by the agent, including the knowledge base for the RAG system.
-
-\-   \*\*`logs/`\*\*: Outputs structured, JSON-formatted application logs for monitoring and debugging.
-
-\-   \*\*`src/kumulus\_consultant/`\*\*: The core, installable Python package containing all application logic.
-
-&nbsp;   -   \*\*`tools.py`\*\*: Production-grade, error-hardened tools for geospatial analysis (e.g., NDVI calculation).
-
-&nbsp;   -   \*\*`rag\_system.py`\*\*: A hybrid RAG system combining semantic (FAISS) and keyword (BM25) search for robust context retrieval.
-
-&nbsp;   -   \*\*`logic.py`\*\*: The "Consultant's Logic" layer, providing Explainable AI (XAI) and ethical guardrails.
-
-&nbsp;   -   \*\*`main.py`\*\*: The main application entry point, featuring a Typer-based CLI.
-
-\-   \*\*`tests/`\*\*: A comprehensive suite of unit tests built with `pytest` and `pytest-mock` to ensure code reliability.
-
-
-
-\## 3. Setup and Installation
-
-
-
-This project uses \*\*Poetry\*\* for deterministic dependency management.
-
-
-
-\### Prerequisites
-
-
-
-\-   Python 3.11+
-
-\-   Poetry (see \[official installation guide](https://python-poetry.org/docs/#installation))
-
-
-
-\### Installation Steps
-
-
-
-1\.  \*\*Clone the repository:\*\*
-
-&nbsp;   ```bash
-
-&nbsp;   git clone <your-repository-url>
-
-&nbsp;   cd kumulus-api
-
-&nbsp;   ```
-
-
-
-2\.  \*\*Install dependencies:\*\*
-
-&nbsp;   Poetry will create a virtual environment and install all necessary packages from the `poetry.lock` file.
-
-&nbsp;   ```bash
-
-&nbsp;   poetry install
-
-&nbsp;   ```
-
-
-
-3\.  \*\*Configure Environment Variables:\*\*
-
-&nbsp;   Create a `.env` file in the project root by copying the example.
-
-&nbsp;   ```bash
-
-&nbsp;   # For PowerShell:
-
-&nbsp;   Copy-Item .env.example .env
-
-
-
-&nbsp;   # For bash/zsh:
-
-&nbsp;   cp .env.example .env
-
-&nbsp;   ```
-
-&nbsp;   Now, edit the `.env` file and add your `OPENAI\_API\_KEY`.
-
-
-
-&nbsp;   ```env
-
-&nbsp;   # .env
-
-&nbsp;   OPENAI\_API\_KEY="sk-..."
-
-&nbsp;   ```
-
-
-
-\## 4. Running the Application
-
-
-
-All commands must be run from within the project's virtual environment.
-
-
-
-\### Activate the Virtual Environment
-
-
-
-```bash
-
-poetry shell
-
+The project has successfully culminated in a production-grade, architecturally sound MLOps pipeline. The final system is a unified, in-memory workflow optimized for performance, scalability, and robustness. It is capable of handling large-scale models and is fully integrated with Optuna for automated hyperparameter optimization, providing the solid foundation required for the next phase of advanced, model-centric experimentation.
